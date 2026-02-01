@@ -1,0 +1,68 @@
+{
+  "name": "in-ai-assistant",
+  "version": "1.0.0",
+  "description": "In - AI Interview Assistant Desktop App",
+  "main": "main.js",
+  "author": "Your Name",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder build --win --publish never",
+    "build-backend": "cd ../backend && pyinstaller --onefile --name server server.py",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-is-dev": "^2.0.0"
+  },
+  "devDependencies": {
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.inassistant.app",
+    "productName": "In AI Assistant",
+    "copyright": "Copyright © 2025",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "In AI Assistant"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "../build/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../backend/.env",
+        "to": "backend/.env"
+      }
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    }
+  }
+}
