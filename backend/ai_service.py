@@ -2,11 +2,14 @@ import os
 import logging
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from dotenv import load_dotenv
+from pathlib import Path
 import base64
 import io
 from PIL import Image
 
-load_dotenv()
+# Load .env from backend directory
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +18,8 @@ class AIService:
     def __init__(self):
         self.api_key = os.environ.get('EMERGENT_LLM_KEY')
         if not self.api_key:
-            raise ValueError("EMERGENT_LLM_KEY not found in environment variables")
+            logger.warning("EMERGENT_LLM_KEY not found in environment variables. AI features will not work.")
+            self.api_key = None
         
         self.system_message = """You are an AI Interview Assistant helping candidates prepare for technical interviews. 
         Provide clear, concise, and helpful answers to interview questions. 
@@ -37,6 +41,9 @@ class AIService:
         Returns:
             AI response as string
         """
+        if not self.api_key:
+            return "AI service is not configured. Please set EMERGENT_LLM_KEY in the .env file."
+        
         try:
             # Initialize chat with session ID
             chat = LlmChat(
