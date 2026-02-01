@@ -20,12 +20,6 @@ const DesktopApp = ({ sessionId, opacity, onClose, onOpenSettings, onOpenHistory
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    if (sessionId) {
-      loadMessages();
-    }
-  }, [sessionId]);
-
   const loadMessages = async () => {
     try {
       const msgs = await chatAPI.getMessages(sessionId);
@@ -35,6 +29,13 @@ const DesktopApp = ({ sessionId, opacity, onClose, onOpenSettings, onOpenHistory
       toast.error('Failed to load conversation history');
     }
   };
+
+  useEffect(() => {
+    if (sessionId) {
+      loadMessages();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
