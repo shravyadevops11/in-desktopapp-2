@@ -1,13 +1,24 @@
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// Use localhost for Electron app
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 const API = `${BACKEND_URL}/api`;
+
+console.log('Backend URL:', BACKEND_URL);
+console.log('API URL:', API);
 
 // Sessions API
 export const sessionsAPI = {
   create: async (title, model = 'GPT-5.2') => {
-    const response = await axios.post(`${API}/sessions`, { title, model });
-    return response.data;
+    try {
+      console.log('Creating session:', { title, model });
+      const response = await axios.post(`${API}/sessions`, { title, model });
+      console.log('Session created:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating session:', error);
+      throw error;
+    }
   },
   
   getAll: async () => {
