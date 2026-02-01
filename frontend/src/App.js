@@ -7,6 +7,7 @@ import SettingsModal from './components/SettingsModal';
 import HistoryModal from './components/HistoryModal';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner';
+import { sessionsAPI } from './services/api';
 
 function App() {
   const [showDesktopApp, setShowDesktopApp] = useState(false);
@@ -16,11 +17,16 @@ function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState(null);
 
-  const handleStartSession = () => {
-    const sessionId = Date.now().toString();
-    setCurrentSessionId(sessionId);
-    setShowDesktopApp(true);
-    toast.success('Session started! AI Assistant is now active.');
+  const handleStartSession = async () => {
+    try {
+      const session = await sessionsAPI.create('New Interview Session', 'GPT-5.2');
+      setCurrentSessionId(session.id);
+      setShowDesktopApp(true);
+      toast.success('Session started! AI Assistant is now active.');
+    } catch (error) {
+      console.error('Error creating session:', error);
+      toast.error('Failed to start session. Please try again.');
+    }
   };
 
   const handleCloseDesktopApp = () => {
