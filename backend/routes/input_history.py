@@ -4,6 +4,10 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 from typing import List
 import logging
+from dotenv import load_dotenv
+from pathlib import Path
+
+load_dotenv(Path(__file__).parent.parent / '.env')
 
 logger = logging.getLogger(__name__)
 
