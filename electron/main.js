@@ -30,18 +30,19 @@ function createWindow() {
   // Remove menu bar
   mainWindow.setMenuBarVisibility(false);
 
-  // Load the app
-  const startUrl = isDev
-    ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, '../frontend/build/index.html')}`;
-
-  mainWindow.loadURL(startUrl);
+  // Load the app - try built version first
+  const buildPath = path.join(__dirname, '../frontend/build/index.html');
+  const fs = require('fs');
   
-  // Handle loading errors
-  mainWindow.webContents.on('did-fail-load', () => {
-    console.log('Failed to load, trying built version...');
-    mainWindow.loadFile(path.join(__dirname, '../frontend/build/index.html'));
-  });
+  if (fs.existsSync(buildPath)) {
+    console.log('Loading from built files...');
+    mainWindow.loadFile(buildPath);
+  } else if (isDev) {
+    console.log('Loading from dev server...');
+    mainWindow.loadURL('http://localhost:3000');
+  } else {
+    console.error('No build files found!');
+  }
 
   // Open DevTools in development
   if (isDev) {
