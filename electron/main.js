@@ -33,9 +33,15 @@ function createWindow() {
   // Load the app
   const startUrl = isDev
     ? 'http://localhost:3000'
-    : `file://${path.join(__dirname, '../build/index.html')}`;
+    : `file://${path.join(__dirname, '../frontend/build/index.html')}`;
 
   mainWindow.loadURL(startUrl);
+  
+  // Handle loading errors
+  mainWindow.webContents.on('did-fail-load', () => {
+    console.log('Failed to load, trying built version...');
+    mainWindow.loadFile(path.join(__dirname, '../frontend/build/index.html'));
+  });
 
   // Open DevTools in development
   if (isDev) {
@@ -48,53 +54,60 @@ function createWindow() {
 }
 
 function startBackend() {
-  console.log('Starting backend server...');
+  console.log('Checking backend server...');
 
-  const backendPath = isDev
-    ? path.join(__dirname, '..', 'backend')
-    : path.join(process.resourcesPath, 'backend');
+  // Check if backend is already running
+  const http = require('http');
+  const options = {
+    hostname: BACKEND_HOST,
+    port: BACKEND_PORT,
+    path: '/api/',
+    method: 'GET',
+    timeout: 1000
+  };
 
-  const pythonExecutable = isDev
-    ? 'python'
-    : path.join(process.resourcesPath, 'backend', 'server.exe');
-
-  const serverScript = isDev
-    ? path.join(backendPath, 'server.py')
-    : null;
-
-  if (isDev) {
-    // Development mode - run Python script
-    backendProcess = spawn(pythonExecutable, [
-      '-m',
-      'uvicorn',
-      'server:app',
-      '--host',
-      BACKEND_HOST,
-      '--port',
-      BACKEND_PORT.toString()
-    ], {
-      cwd: backendPath,
-      stdio: 'inherit'
-    });
-  } else {
-    // Production mode - run bundled executable
-    backendProcess = spawn(pythonExecutable, [
-      '--host',
-      BACKEND_HOST,
-      '--port',
-      BACKEND_PORT.toString()
-    ], {
-      stdio: 'inherit'
-    });
-  }
-
-  backendProcess.on('error', (err) => {
-    console.error('Failed to start backend:', err);
+  const req = http.request(options, (res) => {
+    console.log('Backend already running on port', BACKEND_PORT);
   });
 
-  backendProcess.on('close', (code) => {
-    console.log(`Backend process exited with code ${code}`);
+  req.on('error', (err) => {
+    // Backend not running, start it
+    console.log('Starting backend server...');
+
+    const backendPath = isDev
+      ? path.join(__dirname, '..', 'backend')
+      : path.join(process.resourcesPath, 'backend');
+
+    const pythonExecutable = isDev
+      ? 'python'
+      : path.join(process.resourcesPath, 'backend', 'server.exe');
+
+    if (isDev) {
+      // Development mode - run Python script
+      backendProcess = spawn(pythonExecutable, [
+        '-m',
+        'uvicorn',
+        'server:app',
+        '--host',
+        BACKEND_HOST,
+        '--port',
+        BACKEND_PORT.toString()
+      ], {
+        cwd: backendPath,
+        stdio: 'inherit'
+      });
+
+      backendProcess.on('error', (err) => {
+        console.error('Failed to start backend:', err);
+      });
+
+      backendProcess.on('close', (code) => {
+        console.log(`Backend process exited with code ${code}`);
+      });
+    }
   });
+
+  req.end();
 }
 
 function stopBackend() {
