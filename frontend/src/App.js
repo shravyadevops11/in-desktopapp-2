@@ -19,13 +19,16 @@ function App() {
 
   const handleStartSession = async () => {
     try {
+      console.log('Starting new session...');
       const session = await sessionsAPI.create('New Interview Session', 'GPT-5.2');
+      console.log('Session created successfully:', session);
       setCurrentSessionId(session.id);
       setShowDesktopApp(true);
       toast.success('Session started! AI Assistant is now active.');
     } catch (error) {
       console.error('Error creating session:', error);
-      toast.error('Failed to start session. Please try again.');
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to connect to backend';
+      toast.error(`Failed to start session: ${errorMessage}`);
     }
   };
 
