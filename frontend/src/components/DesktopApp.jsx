@@ -1,12 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Minimize2, X, Settings as SettingsIcon, History as HistoryIcon } from 'lucide-react';
-import { mockChatHistory } from '../mockData';
+import { Send, Minimize2, X, Settings as SettingsIcon, History as HistoryIcon, Image as ImageIcon, Mic, Loader2 } from 'lucide-react';
+import { chatAPI, inputHistoryAPI } from '../services/api';
+import { toast } from 'sonner';
 
 const DesktopApp = ({ sessionId, opacity, onClose, onOpenSettings, onOpenHistory }) => {
-  const [messages, setMessages] = useState(mockChatHistory['1'] || []);
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -16,29 +20,75 @@ const DesktopApp = ({ sessionId, opacity, onClose, onOpenSettings, onOpenHistory
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+  useEffect(() => {
+    if (sessionId) {
+      loadMessages();
+    }
+  }, [sessionId]);
 
-    const newUserMessage = {
-      id: `msg${Date.now()}`,
-      type: 'user',
-      content: inputValue,
-      timestamp: new Date().toISOString()
-    };
+  const loadMessages = async () => {
+    try {
+      const msgs = await chatAPI.getMessages(sessionId);
+      setMessages(msgs);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      toast.error('Failed to load conversation history');
+    }
+  };
 
-    setMessages([...messages, newUserMessage]);
-    setInputValue('');
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse = {
-        id: `msg${Date.now()}`,
-        type: 'assistant',
-        content: 'This is a mock response. Backend integration will provide real AI responses from GPT-5.2.',
-        timestamp: new Date().toISOString()
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedImage(reader.result);
+        toast.success('Image selected! Add your question and send.');
       };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() && !selectedImage) return;
+
+    const messageText = inputValue.trim() || 'Please analyze this image';
+    setIsLoading(true);
+
+    try {
+      // Save to input history
+      await inputHistoryAPI.save(sessionId, messageText);
+
+      // Create user message for display
+      const newUserMessage = {
+        id: `msg${Date.now()}`,
+        type: 'user',
+        content: messageText,
+        timestamp: new Date().toISOString(),
+        imageUrl: selectedImage
+      };
+
+      setMessages((prev) => [...prev, newUserMessage]);
+      setInputValue('');
+      
+      // Send to API
+      const aiResponse = await chatAPI.sendMessage(
+        sessionId,
+        messageText,
+        'GPT-5.2',
+        selectedImage ? 'image' : 'text',
+        selectedImage,
+        null
+      );
+
       setMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
+      setSelectedImage(null);
+      toast.success('AI response received!');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isMinimized) {
@@ -98,6 +148,12 @@ const DesktopApp = ({ sessionId, opacity, onClose, onOpenSettings, onOpenHistory
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="text-center text-gray-500 mt-10">
+            <p className="text-sm">Start your interview preparation session</p>
+            <p className="text-xs mt-2">Ask questions, share images, or practice answers</p>
+          </div>
+        )}
         {messages.map((message) => (
           <div
             key={message.id}
@@ -110,6 +166,13 @@ const DesktopApp = ({ sessionId, opacity, onClose, onOpenSettings, onOpenHistory
                   : 'bg-gray-800 text-gray-200'
               }`}
             >
+              {message.imageUrl && (
+                <img 
+                  src={message.imageUrl} 
+                  alt="Uploaded" 
+                  className="rounded mb-2 max-w-full h-auto"
+                />
+              )}
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               <span className="text-xs opacity-70 mt-1 block">
                 {new Date(message.timestamp).toLocaleTimeString()}
@@ -117,25 +180,59 @@ const DesktopApp = ({ sessionId, opacity, onClose, onOpenSettings, onOpenHistory
             </div>
           </div>
         ))}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-800 text-gray-200 rounded-lg p-3">
+              <Loader2 className="w-5 h-5 animate-spin" />
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
       <div className="p-4 border-t border-gray-800">
+        {selectedImage && (
+          <div className="mb-2 relative inline-block">
+            <img src={selectedImage} alt="Selected" className="h-16 rounded" />
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <div className="flex space-x-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageSelect}
+            accept="image/*"
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 bg-gray-800 text-gray-400 hover:text-white rounded-lg transition-all"
+            title="Upload image"
+          >
+            <ImageIcon className="w-5 h-5" />
+          </button>
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
             placeholder="Ask anything..."
-            className="flex-1 bg-gray-800 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm"
+            disabled={isLoading}
+            className="flex-1 bg-gray-800 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm disabled:opacity-50"
           />
           <button
             onClick={handleSendMessage}
-            className="p-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-all"
+            disabled={isLoading || (!inputValue.trim() && !selectedImage)}
+            className="p-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Send className="w-5 h-5" />
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
           </button>
         </div>
       </div>
